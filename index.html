@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Elite AI Chat</title>
+  <style>
+    /* Reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Body & Layout */
+    body, html {
+      height: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #232526, #1c1c1c);
+      color: #e6e6e6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    #app {
+      background: #1a1a1a;
+      width: 100%;
+      max-width: 600px;
+      height: 80vh;
+      border-radius: 20px;
+      box-shadow: 0 0 40px rgba(170, 170, 170, 0.15);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      backdrop-filter: saturate(180%) blur(15px);
+    }
+
+    header {
+      padding: 20px;
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      border-bottom: 1px solid #333;
+      text-align: center;
+      color: #bb86fc;
+      text-shadow: 0 0 15px #bb86fc88;
+    }
+
+    #chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      background:
+        radial-gradient(circle at top left, #2d2d2d 10%, transparent 40%),
+        radial-gradient(circle at bottom right, #3b3b3b 10%, transparent 60%);
+      border-radius: 0 0 20px 20px;
+      box-shadow: inset 0 0 20px #00000050;
+    }
+
+    .message {
+      margin-bottom: 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+      max-width: 80%;
+    }
+
+    .message.ai {
+      flex-direction: row;
+      margin-left: auto;
+      max-width: 100%;
+    }
+
+    .message.user {
+      flex-direction: row-reverse;
+      margin-right: auto;
+    }
+
+    .avatar {
+      min-width: 45px;
+      min-height: 45px;
+      border-radius: 50%;
+      background: #bb86fc;
+      box-shadow: 0 0 15px #bb86fcaa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: #1c1c1c;
+      user-select: none;
+    }
+
+    .avatar.ai {
+      background: #03dac6;
+      color: #000;
+      box-shadow: 0 0 15px #03dac6aa;
+    }
+
+    .bubble {
+      background: #2c2c2c;
+      border-radius: 15px;
+      padding: 15px 20px;
+      font-size: 1rem;
+      line-height: 1.4;
+      box-shadow: 0 0 15px #00000070;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      flex-shrink: 1;
+    }
+
+    .message.ai .bubble {
+      background: #03dac680;
+      color: #000;
+      box-shadow: 0 0 20px #03dac6cc;
+    }
+
+    form {
+      padding: 15px 20px;
+      background: #111111cc;
+      display: flex;
+      gap: 15px;
+      border-top: 1px solid #333;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 12px 18px;
+      border-radius: 30px;
+      border: none;
+      font-size: 1rem;
+      outline: none;
+      background: #222;
+      color: #ddd;
+      box-shadow: inset 0 0 10px #000;
+      transition: box-shadow 0.25s ease;
+      font-weight: 600;
+    }
+    input[type="text"]:focus {
+      box-shadow: inset 0 0 12px #bb86fc;
+      color: #fff;
+    }
+
+    button {
+      background: #bb86fc;
+      border: none;
+      border-radius: 30px;
+      padding: 12px 22px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      color: #1c1c1c;
+      box-shadow: 0 0 15px #bb86fc;
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+    button:hover:not(:disabled) {
+      background: #a263f9;
+      box-shadow: 0 0 25px #a263f9;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    @media (max-width: 600px) {
+      #app {
+        height: 90vh;
+        width: 100%;
+        border-radius: 15px;
+      }
+      header {
+        font-size: 1.5rem;
+        padding: 15px;
+      }
+      .bubble {
+        font-size: 0.9rem;
+      }
+      input[type="text"] {
+        font-size: 0.9rem;
+      }
+      button {
+        font-size: 0.9rem;
+        padding: 10px 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" role="main" aria-label="Elite AI Chat Interface">
+    <header>Elite AI Chat</header>
+    <div id="chat-container" aria-live="polite" aria-relevant="additions"></div>
+    <form id="chat-form" aria-label="Send question to AI">
+      <input id="user-input" type="text" autocomplete="off" placeholder="Tanyakan sesuatu..." aria-required="true" aria-describedby="input-help" />
+      <button type="submit" aria-label="Kirim pertanyaan AI">Kirim</button>
+    </form>
+  </div>
+
+  <script>
+    // Scroll chat container to bottom helper
+    function scrollToBottom() {
+      const container = document.getElementById('chat-container');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function createMessageElement(text, isAI) {
+      const messageElem = document.createElement('div');
+      messageElem.classList.add('message');
+      messageElem.classList.add(isAI ? 'ai' : 'user');
+      messageElem.setAttribute('role', 'listitem');
+
+      const avatar = document.createElement('div');
+      avatar.classList.add('avatar');
+      avatar.classList.add(isAI ? 'ai' : 'user');
+      avatar.textContent = isAI ? 'AI' : 'You';
+
+      const bubble = document.createElement('div');
+      bubble.classList.add('bubble');
+      bubble.textContent = text;
+
+      if (isAI) {
+        messageElem.appendChild(avatar);
+        messageElem.appendChild(bubble);
+      } else {
+        messageElem.appendChild(bubble);
+        messageElem.appendChild(avatar);
+      }
+      return messageElem;
+    }
+
+    async function sendMessage(question) {
+      const chatContainer = document.getElementById('chat-container');
+      // Show user message
+      const userMsgElem = createMessageElement(question, false);
+      chatContainer.appendChild(userMsgElem);
+      scrollToBottom();
+
+      // Show AI thinking message
+      const thinkingMsgElem = createMessageElement('...', true);
+      chatContainer.appendChild(thinkingMsgElem);
+      scrollToBottom();
+
+      try {
+        const response = await fetch('/api/ask', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({question})
+        });
+
+        if (!response.ok) {
+          throw new Error('Gagal menerima respons dari AI.');
+        }
+
+        const data = await response.json();
+        // Update AI message
+        thinkingMsgElem.querySelector('.bubble').textContent = data.answer.trim();
+      } catch (error) {
+        thinkingMsgElem.querySelector('.bubble').textContent = 'Terjadi kesalahan: ' + error.message;
+      }
+      scrollToBottom();
+    }
+
+    document.getElementById('chat-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const input = document.getElementById('user-input');
+      const question = input.value.trim();
+      if (!question) return;
+      input.value = '';
+      input.focus();
+      sendMessage(question);
+    });
+
+    // Focus input on load for better UX
+    window.addEventListener('load', () => {
+      document.getElementById('user-input').focus();
+    });
+  </script>
+</body>
+</html>
+
+```
